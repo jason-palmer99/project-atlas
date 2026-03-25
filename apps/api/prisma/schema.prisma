@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// === Enums ===
+
+enum SoftwareTitleStatus {
+  ACTIVE
+  RETIRED
+  UNDER_REVIEW
+}
+
+enum CatalogDecisionType {
+  SANCTIONED
+  UNSANCTIONED_RUNNING
+  PENDING_GOVERNANCE
+  BLOCKED
+  RETIRED
+}
+
+enum EvidenceType {
+  QNA
+  VENDOR_RISK_ASSESSMENT
+  SOFTWARE_RISK_ASSESSMENT
+  SECURITY_SCAN
+}
+
+enum EvidenceStatus {
+  ACTIVE
+  EXPIRED
+  PENDING
+  REVOKED
+}
+
+enum MatchMethod {
+  EXACT
+  FUZZY
+  VENDOR_PRODUCT
+  MANUAL
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NOT_REQUIRED
+}
+
+// === Models ===
+
+model SoftwareTitle {
+  id            String              @id @default(uuid())
+  canonicalName String
+  vendor        String
+  productFamily String?
+  category      String?
+  description   String?
+  status        SoftwareTitleStatus @default(ACTIVE)
+  isSanctioned  Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  evidence  GovernanceEvidence[]
+  decisions CatalogDecision[]
+  matches   MatchRecord[]
+
+  @@index([status])
+  @@index([vendor])
+  @@index([canonicalName])
+  @@index([isSanctioned])
+}
+
+model SoftwareObservation {
+  id              String   @id @default(uuid())
+  rawTitle        String
+  normalizedTitle String?
+  vendor          String?
+  version         String?
+  sourceSystem    String
+  deviceId        String?
+  department      String?
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  confidenceScore Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  matches MatchRecord[]
+
+  @@index([sourceSystem])
+  @@index([normalizedTitle])
+  @@index([lastSeenAt])
+}
+
+model GovernanceEvidence {
+  id              String         @id @default(uuid())
+  softwareTitleId String
+  evidenceType    EvidenceType
+  referenceId     String?
+  referenceUrl    String?
+  status          EvidenceStatus @default(PENDING)
+  owner           String?
+  effectiveDate   DateTime?
+  expirationDate  DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  softwareTitle SoftwareTitle @relation(fields: [softwareTitleId], references: [id])
+
+  @@index([softwareTitleId])
+  @@index([evidenceType])
+  @@index([status])
+}
+
+model CatalogDecision {
+  id              String              @id @default(uuid())
+  softwareTitleId String
+  decision        CatalogDecisionType
+  reason          String
+  decidedBy       String
+  decidedAt       DateTime            @default(now())
+  isManualOverride Boolean            @default(false)
+  createdAt       DateTime            @default(now())
+
+  softwareTitle SoftwareTitle @relation(fields: [softwareTitleId], references: [id])
+
+  @@index([softwareTitleId])
+  @@index([decidedAt])
+}
+
+model MatchRecord {
+  id              String       @id @default(uuid())
+  observationId   String
+  softwareTitleId String
+  matchMethod     MatchMethod
+  confidenceScore Float
+  reviewStatus    ReviewStatus @default(PENDING)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  observation   SoftwareObservation @relation(fields: [observationId], references: [id])
+  softwareTitle SoftwareTitle       @relation(fields: [softwareTitleId], references: [id])
+
+  @@index([observationId])
+  @@index([softwareTitleId])
+  @@index([reviewStatus])
+}
