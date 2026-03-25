@@ -7,7 +7,11 @@ import {
   Body,
   Query,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { SoftwareTitlesService } from "./software-titles.service";
 import {
   CreateSoftwareTitleDto,
@@ -32,6 +36,15 @@ export class SoftwareTitlesController {
   @Post()
   create(@Body() dto: CreateSoftwareTitleDto) {
     return this.service.create(dto);
+  }
+
+  @Post("import/csv")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024 } }))
+  importCsv(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException("No file uploaded. Send a multipart/form-data request with field name 'file'.");
+    }
+    return this.service.importCsv(file.buffer);
   }
 
   @Patch(":id")

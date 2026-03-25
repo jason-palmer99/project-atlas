@@ -1,3 +1,10 @@
+import { resolve } from "path";
+import { config } from "dotenv";
+
+// Load .env from api dir first, then fall back to monorepo root
+config({ path: resolve(__dirname, "../.env") });
+config({ path: resolve(__dirname, "../../../.env") });
+
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
