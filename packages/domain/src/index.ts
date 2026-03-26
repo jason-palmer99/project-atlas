@@ -42,6 +42,12 @@ export enum SoftwareTitleStatus {
   UNDER_REVIEW = "UNDER_REVIEW",
 }
 
+export enum Tristate {
+  YES = "YES",
+  NO = "NO",
+  UNKNOWN = "UNKNOWN",
+}
+
 // === Entity Interfaces ===
 
 export interface SoftwareTitle {
@@ -53,6 +59,9 @@ export interface SoftwareTitle {
   description: string | null;
   status: SoftwareTitleStatus;
   isSanctioned: boolean;
+  sourceSystem: string | null;
+  isBusinessCritical: Tristate;
+  isQualityImpacting: Tristate;
   createdAt: Date;
   updatedAt: Date;
 }

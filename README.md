@@ -99,7 +99,23 @@ Navigate to **http://localhost:5173** — you should see the Atlas catalog page.
 | API | http://localhost:3000 | NestJS REST API |
 | PostgreSQL | localhost:5432 | Database (Docker) |
 
+### Dev Scripts
+
+The `scripts/` folder contains PowerShell scripts that automate the full lifecycle — loading `.env`, starting Docker, running migrations, building, and clearing stale port conflicts:
+
+```powershell
+.\scripts\dev-start.ps1          # Full start: Docker → migrations → build → pnpm dev
+.\scripts\dev-stop.ps1           # Kill API + web processes (add -IncludeDb to also stop PostgreSQL)
+.\scripts\dev-restart.ps1        # Stop then start (add -SkipBuild to skip the build step)
+```
+
 ### Stopping everything
+
+```powershell
+.\scripts\dev-stop.ps1 -IncludeDb   # stops dev servers and PostgreSQL
+```
+
+Or manually:
 
 ```bash
 # Ctrl+C in the terminal running pnpm dev, then:
@@ -135,6 +151,7 @@ packages/domain/       Framework-agnostic entities, enums, types, business rules
 packages/rules-engine/ Status derivation logic
 packages/ingestion-sdk/ Source adapter contract and implementations
 packages/ui-components/ Shared React presentational components
+scripts/               PowerShell dev scripts (start, stop, restart)
 services/              Future worker extraction targets
 docs/                  Architecture docs, ADRs, product docs
 infra/                 Infrastructure as code

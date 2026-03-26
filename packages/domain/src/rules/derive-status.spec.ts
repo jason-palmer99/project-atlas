@@ -6,6 +6,7 @@ import {
   EvidenceStatus,
   SoftwareTitleStatus,
   StatusDerivationInput,
+  Tristate,
 } from "../index";
 
 function makeTitle(overrides = {}) {
@@ -18,6 +19,9 @@ function makeTitle(overrides = {}) {
     description: null,
     status: SoftwareTitleStatus.ACTIVE,
     isSanctioned: false,
+    sourceSystem: null,
+    isBusinessCritical: Tristate.UNKNOWN,
+    isQualityImpacting: Tristate.UNKNOWN,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

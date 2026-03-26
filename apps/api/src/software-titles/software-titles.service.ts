@@ -130,7 +130,7 @@ export class SoftwareTitlesService {
 
   async create(dto: CreateSoftwareTitleDto) {
     return this.prisma.softwareTitle.create({
-      data: dto,
+      data: dto as any,
     });
   }
 
@@ -142,7 +142,7 @@ export class SoftwareTitlesService {
     });
   }
 
-  async importCsv(buffer: Buffer): Promise<{ created: number; updated: number; skipped: number; errors: string[] }> {
+  async importCsv(buffer: Buffer): Promise<{ created: number; updated: number; skipped: number; errors: string[]; columnsMatched: Record<string, string | null> }> {
     const lines = parseCsv(buffer.toString("utf-8"));
 
     if (lines.length < 2) {
@@ -150,6 +150,7 @@ export class SoftwareTitlesService {
     }
 
     const headers = lines[0].map((h) => h.trim().toLowerCase());
+    const rawHeaders = lines[0].map((h) => h.trim());
 
     const colIndex = (...candidates: string[]): number => {
       for (const c of candidates) {
@@ -172,7 +173,21 @@ export class SoftwareTitlesService {
     const familyIdx = colIndex("product family", "family", "product line");
     const descIdx = colIndex("description");
     const statusIdx = colIndex("status", "software status");
-    const sanctionedIdx = colIndex("sanctioned", "is sanctioned", "approved", "approved?");
+    const sanctionedIdx = colIndex("sanctioned", "is sanctioned", "issanctioned");
+    const bizCriticalIdx = colIndex("business critical", "business critical?", "businesscritical", "isbusinesscritical", "biz critical", "critical", "bc");
+    const qualityIdx = colIndex("quality impacting", "quality impacting?", "qualityimpacting", "isqualityimpacting", "quality impact", "quality", "qi", "gxp");
+
+    const columnsMatched: Record<string, string | null> = {
+      name: nameIdx !== -1 ? rawHeaders[nameIdx] : null,
+      vendor: vendorIdx !== -1 ? rawHeaders[vendorIdx] : null,
+      category: categoryIdx !== -1 ? rawHeaders[categoryIdx] : null,
+      productFamily: familyIdx !== -1 ? rawHeaders[familyIdx] : null,
+      description: descIdx !== -1 ? rawHeaders[descIdx] : null,
+      status: statusIdx !== -1 ? rawHeaders[statusIdx] : null,
+      sanctioned: sanctionedIdx !== -1 ? rawHeaders[sanctionedIdx] : null,
+      businessCritical: bizCriticalIdx !== -1 ? rawHeaders[bizCriticalIdx] : null,
+      qualityImpacting: qualityIdx !== -1 ? rawHeaders[qualityIdx] : null,
+    };
 
     let created = 0;
     let updated = 0;
@@ -192,7 +207,7 @@ export class SoftwareTitlesService {
           continue;
         }
 
-        const data: Record<string, unknown> = { canonicalName, vendor, isSanctioned: true };
+        const data: Record<string, unknown> = { canonicalName, vendor, isSanctioned: true, sourceSystem: "CSV Import" };
 
         if (categoryIdx !== -1 && row[categoryIdx]?.trim()) {
           data.category = row[categoryIdx].trim();
@@ -208,6 +223,12 @@ export class SoftwareTitlesService {
         }
         if (sanctionedIdx !== -1 && row[sanctionedIdx]?.trim()) {
           data.isSanctioned = normalizeBoolean(row[sanctionedIdx].trim());
+        }
+        if (bizCriticalIdx !== -1 && row[bizCriticalIdx]?.trim()) {
+          data.isBusinessCritical = normalizeTristate(row[bizCriticalIdx].trim());
+        }
+        if (qualityIdx !== -1 && row[qualityIdx]?.trim()) {
+          data.isQualityImpacting = normalizeTristate(row[qualityIdx].trim());
         }
 
         const existing = await this.prisma.softwareTitle.findFirst({
@@ -230,7 +251,7 @@ export class SoftwareTitlesService {
       }
     }
 
-    return { created, updated, skipped, errors };
+    return { created, updated, skipped, errors, columnsMatched };
   }
 }
 
@@ -280,4 +301,11 @@ function normalizeTitleStatus(value: string): string {
 function normalizeBoolean(value: string): boolean {
   const v = value.toLowerCase().trim();
   return v === "yes" || v === "true" || v === "1" || v === "y" || v === "x";
+}
+
+function normalizeTristate(value: string): string {
+  const v = value.toLowerCase().trim();
+  if (v === "yes" || v === "true" || v === "1" || v === "y" || v === "x") return "YES";
+  if (v === "no" || v === "false" || v === "0" || v === "n") return "NO";
+  return "UNKNOWN";
 }

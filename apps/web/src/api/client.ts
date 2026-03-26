@@ -57,6 +57,9 @@ export interface SoftwareTitleRow {
   category: string | null;
   status: string;
   isSanctioned: boolean;
+  sourceSystem: string | null;
+  isBusinessCritical: string;
+  isQualityImpacting: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -214,6 +217,7 @@ export interface CatalogImportResult {
   updated: number;
   skipped: number;
   errors: string[];
+  columnsMatched: Record<string, string | null>;
 }
 
 export function importCatalogCsv(file: File) {

@@ -4,6 +4,12 @@ import { fetchTitles, importCatalogCsv, SoftwareTitleRow, CatalogImportResult } 
 import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
 
+function tristateLabel(value: string): string {
+  if (value === "YES") return "✓ Yes";
+  if (value === "NO") return "✗ No";
+  return "— Unknown";
+}
+
 export function CatalogListPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +117,19 @@ export function CatalogListPage() {
         }}>
           <strong>Import complete:</strong>{" "}
           {importResult.created} created, {importResult.updated} updated, {importResult.skipped} skipped.
+          {importResult.columnsMatched && (
+            <details style={{ marginTop: "0.5rem" }}>
+              <summary style={{ cursor: "pointer" }}>Column mapping</summary>
+              <ul style={{ margin: "0.5rem 0 0 1rem", padding: 0, listStyle: "none" }}>
+                {Object.entries(importResult.columnsMatched).map(([field, header]) => (
+                  <li key={field}>
+                    <strong>{field}:</strong>{" "}
+                    {header ? <span style={{ color: "#16a34a" }}>✓ "{header}"</span> : <span style={{ color: "#9ca3af" }}>— not found</span>}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           {importResult.errors.length > 0 && (
             <details style={{ marginTop: "0.5rem" }}>
               <summary style={{ cursor: "pointer" }}>{importResult.errors.length} row error(s)</summary>
@@ -185,18 +204,21 @@ export function CatalogListPage() {
               <th>Name</th>
               <th>Vendor</th>
               <th>Category</th>
+              <th>Source</th>
               <th>Status</th>
               <th>Sanctioned</th>
+              <th>Business Critical</th>
+              <th>Quality Impacting</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="loading">Loading...</td>
+                <td colSpan={8} className="loading">Loading...</td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="empty-state">No software titles found</td>
+                <td colSpan={8} className="empty-state">No software titles found</td>
               </tr>
             ) : (
               data.map((title) => (
@@ -208,8 +230,11 @@ export function CatalogListPage() {
                   <td><strong>{title.canonicalName}</strong></td>
                   <td>{title.vendor}</td>
                   <td>{title.category ?? "—"}</td>
+                  <td>{title.sourceSystem ?? "—"}</td>
                   <td><StatusBadge value={title.status} /></td>
                   <td>{title.isSanctioned ? "✓ Yes" : "✗ No"}</td>
+                  <td>{tristateLabel(title.isBusinessCritical)}</td>
+                  <td>{tristateLabel(title.isQualityImpacting)}</td>
                 </tr>
               ))
             )}

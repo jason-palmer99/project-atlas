@@ -51,19 +51,28 @@ enum ReviewStatus {
   NOT_REQUIRED
 }
 
+enum Tristate {
+  YES
+  NO
+  UNKNOWN
+}
+
 // === Models ===
 
 model SoftwareTitle {
-  id            String              @id @default(uuid())
-  canonicalName String
-  vendor        String
-  productFamily String?
-  category      String?
-  description   String?
-  status        SoftwareTitleStatus @default(ACTIVE)
-  isSanctioned  Boolean             @default(false)
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  id                 String              @id @default(uuid())
+  canonicalName      String
+  vendor             String
+  productFamily      String?
+  category           String?
+  description        String?
+  status             SoftwareTitleStatus @default(ACTIVE)
+  isSanctioned       Boolean             @default(false)
+  sourceSystem       String?
+  isBusinessCritical Tristate            @default(UNKNOWN)
+  isQualityImpacting Tristate            @default(UNKNOWN)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   evidence  GovernanceEvidence[]
   decisions CatalogDecision[]
