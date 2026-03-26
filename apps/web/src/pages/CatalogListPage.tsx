@@ -1,15 +1,25 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchTitles, SoftwareTitleRow } from "../api/client";
+import { fetchTitles, importCatalogCsv, SoftwareTitleRow, CatalogImportResult } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
 
+function tristateLabel(value: string): string {
+  if (value === "YES") return "✓ Yes";
+  if (value === "NO") return "✗ No";
+  return "— Unknown";
+}
+
 export function CatalogListPage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<SoftwareTitleRow[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<CatalogImportResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -51,6 +61,26 @@ export function CatalogListPage() {
     setOffset(0);
   }
 
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so the same file can be re-selected after a fix
+    e.target.value = "";
+    setImporting(true);
+    setImportResult(null);
+    setImportError(null);
+    try {
+      const result = await importCatalogCsv(file);
+      setImportResult(result);
+      load(); // Refresh the catalog list
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Import failed";
+      setImportError(msg);
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -58,7 +88,84 @@ export function CatalogListPage() {
         <span style={{ color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
           {total} titles
         </span>
+        <div style={{ marginLeft: "auto" }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
+          <button
+            className="btn btn-primary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+          >
+            {importing ? "Importing..." : "Import CSV"}
+          </button>
+        </div>
       </div>
+
+      {importResult && (
+        <div style={{
+          padding: "0.75rem 1rem",
+          marginBottom: "1rem",
+          borderRadius: "6px",
+          background: importResult.errors.length > 0 ? "var(--color-warning-bg, #fffbeb)" : "var(--color-success-bg, #f0fdf4)",
+          border: `1px solid ${importResult.errors.length > 0 ? "#fbbf24" : "#86efac"}`,
+          fontSize: "0.875rem",
+        }}>
+          <strong>Import complete:</strong>{" "}
+          {importResult.created} created, {importResult.updated} updated, {importResult.skipped} skipped.
+          {importResult.columnsMatched && (
+            <details style={{ marginTop: "0.5rem" }}>
+              <summary style={{ cursor: "pointer" }}>Column mapping</summary>
+              <ul style={{ margin: "0.5rem 0 0 1rem", padding: 0, listStyle: "none" }}>
+                {Object.entries(importResult.columnsMatched).map(([field, header]) => (
+                  <li key={field}>
+                    <strong>{field}:</strong>{" "}
+                    {header ? <span style={{ color: "#16a34a" }}>✓ "{header}"</span> : <span style={{ color: "#9ca3af" }}>— not found</span>}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {importResult.errors.length > 0 && (
+            <details style={{ marginTop: "0.5rem" }}>
+              <summary style={{ cursor: "pointer" }}>{importResult.errors.length} row error(s)</summary>
+              <ul style={{ margin: "0.5rem 0 0 1rem", padding: 0 }}>
+                {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            </details>
+          )}
+          <button
+            onClick={() => setImportResult(null)}
+            style={{ marginLeft: "1rem", background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {importError && (
+        <div style={{
+          padding: "0.75rem 1rem",
+          marginBottom: "1rem",
+          borderRadius: "6px",
+          background: "var(--color-danger-bg, #fef2f2)",
+          border: "1px solid #fca5a5",
+          fontSize: "0.875rem",
+          color: "#991b1b",
+        }}>
+          <strong>Import failed:</strong> {importError}
+          <button
+            onClick={() => setImportError(null)}
+            style={{ marginLeft: "1rem", background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="filters">
         <input
@@ -97,18 +204,21 @@ export function CatalogListPage() {
               <th>Name</th>
               <th>Vendor</th>
               <th>Category</th>
+              <th>Source</th>
               <th>Status</th>
               <th>Sanctioned</th>
+              <th>Business Critical</th>
+              <th>Quality Impacting</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="loading">Loading...</td>
+                <td colSpan={8} className="loading">Loading...</td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="empty-state">No software titles found</td>
+                <td colSpan={8} className="empty-state">No software titles found</td>
               </tr>
             ) : (
               data.map((title) => (
@@ -120,8 +230,11 @@ export function CatalogListPage() {
                   <td><strong>{title.canonicalName}</strong></td>
                   <td>{title.vendor}</td>
                   <td>{title.category ?? "—"}</td>
+                  <td>{title.sourceSystem ?? "—"}</td>
                   <td><StatusBadge value={title.status} /></td>
                   <td>{title.isSanctioned ? "✓ Yes" : "✗ No"}</td>
+                  <td>{tristateLabel(title.isBusinessCritical)}</td>
+                  <td>{tristateLabel(title.isQualityImpacting)}</td>
                 </tr>
               ))
             )}

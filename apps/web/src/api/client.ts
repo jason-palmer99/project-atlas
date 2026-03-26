@@ -21,6 +21,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+async function requestFormData<T>(path: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    body: formData,
+    // No Content-Type — browser sets it automatically with the correct boundary
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body.message ?? res.statusText, body);
+  }
+
+  return res.json();
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -42,6 +57,9 @@ export interface SoftwareTitleRow {
   category: string | null;
   status: string;
   isSanctioned: boolean;
+  sourceSystem: string | null;
+  isBusinessCritical: string;
+  isQualityImpacting: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -190,4 +208,20 @@ export function ingestCsv(csv: string, columnMapping?: Record<string, string>) {
     method: "POST",
     body: JSON.stringify({ csv, columnMapping }),
   });
+}
+
+// ── Catalog Import ──
+
+export interface CatalogImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  columnsMatched: Record<string, string | null>;
+}
+
+export function importCatalogCsv(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return requestFormData<CatalogImportResult>("/software-titles/import/csv", formData);
 }

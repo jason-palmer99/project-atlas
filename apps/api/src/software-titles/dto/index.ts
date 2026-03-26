@@ -19,6 +19,18 @@ export class CreateSoftwareTitleDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  sourceSystem?: string;
+
+  @IsOptional()
+  @IsEnum(["YES", "NO", "UNKNOWN"])
+  isBusinessCritical?: string;
+
+  @IsOptional()
+  @IsEnum(["YES", "NO", "UNKNOWN"])
+  isQualityImpacting?: string;
 }
 
 export class UpdateSoftwareTitleDto {
@@ -49,6 +61,18 @@ export class UpdateSoftwareTitleDto {
   @IsOptional()
   @IsBoolean()
   isSanctioned?: boolean;
+
+  @IsOptional()
+  @IsString()
+  sourceSystem?: string;
+
+  @IsOptional()
+  @IsEnum(["YES", "NO", "UNKNOWN"])
+  isBusinessCritical?: string;
+
+  @IsOptional()
+  @IsEnum(["YES", "NO", "UNKNOWN"])
+  isQualityImpacting?: string;
 }
 
 export class SoftwareTitleQueryDto {

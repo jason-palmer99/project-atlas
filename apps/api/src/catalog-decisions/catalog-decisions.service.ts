@@ -126,6 +126,8 @@ export class CatalogDecisionsService {
       title: {
         ...title,
         status: title.status as any,
+        isBusinessCritical: title.isBusinessCritical as any,
+        isQualityImpacting: title.isQualityImpacting as any,
       },
       evidence: evidenceSummary,
       hasObservations,
